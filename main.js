@@ -64,6 +64,33 @@ function setCurrentUser(user) {
     }
 }
 
+/**
+ * Promise-based Helper Function:
+ * Simulates an asynchronous payment gateway API request.
+ */
+function processPaymentApi(paymentDetails) {
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            if (!paymentDetails || !paymentDetails.amount) {
+                reject(new Error("Invalid payment details provided."));
+                return;
+            }
+
+            // Simulate 95% API success rate
+            const isSuccess = Math.random() < 0.95;
+
+            if (isSuccess) {
+                resolve({
+                    status: 200,
+                    transactionId: "TXN_" + Math.floor(100000 + Math.random() * 900000)
+                });
+            } else {
+                reject(new Error("Payment processing failed. Please verify your details and try again."));
+            }
+        }, 1500);
+    });
+}
+
 function initTheme() {
     const themeToggle = document.getElementById('themeToggle');
     const root = document.documentElement;
@@ -495,19 +522,34 @@ function openPaymentModal() {
             });
         });
 
-        document.getElementById('paymentForm').addEventListener('submit', (e) => {
+        // Form submission handled asynchronously with a Promise
+        document.getElementById('paymentForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const submitBtn = e.target.querySelector('.pay-now-btn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Processing Payment...';
 
-            setTimeout(() => {
+            const paymentData = {
+                amount: document.getElementById('modalPayableAmount').textContent,
+                timestamp: new Date().toISOString()
+            };
+
+            try {
+                // Await resolution of the Promise
+                const response = await processPaymentApi(paymentData);
+                
                 saveCart([]);
                 closePaymentModal();
                 if (typeof initCartPage === 'function') initCartPage();
-                showToast('Payment Successful! Order placed successfully.');
-            }, 1500);
+                showToast(`Payment Successful! Transaction ID: ${response.transactionId}`);
+            } catch (error) {
+                // Catch rejection of the Promise
+                showToast(error.message || 'Payment failed. Please try again.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Pay & Complete Order →';
+            }
         });
     }
 
